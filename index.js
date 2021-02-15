@@ -4,6 +4,7 @@ var bodyParser = require('body-parser');
 var methodOverride = require('method-override');
 var flash = require('connect-flash');
 var session = require('express-session');
+var passport = require('./config/passport');
 require('dotenv').config()
 var app = express();
 
@@ -27,6 +28,14 @@ app.use(bodyParser.urlencoded({extended:true}));
 app.use(methodOverride('_method'));
 app.use(flash());
 app.use(session({secret:process.env.SESSION_SECRET, resave:true, saveUninitialized:true}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use((req,res,next) => {
+  res.locals.isAuthenticated = req.isAuthenticated();
+  res.locals.currentUser = req.user;
+  next();
+});
 
 app.use('/', require('./routes/home'));
 app.use('/posts', require('./routes/posts'));

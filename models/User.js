@@ -62,21 +62,21 @@ userSchema.path('password').validate(function(v){
       }
     });
 
-    userSchema.pre('save', function(next) {
-        var user = this;
-        if(!user.isModified('password')){
-            return next();
-        }
-        else{
-            user.password = bcrypt.hashSync(user.password);
-            return next();
-        }
-    });
-
-    userSchema.methods.authenticate = (password) => {
-        var user = this;
-        return bcrypt.compareSync(password, user.password);
+userSchema.pre('save', function (next){
+    var user = this;
+    if(!user.isModified('password')){
+        return next();
     }
+    else {
+        user.password = bcrypt.hashSync(user.password);
+        return next();
+    }
+});
+
+userSchema.methods.authenticate = function (password) {
+    var user = this;
+    return bcrypt.compareSync(password,user.password);
+  };
 
 var User = mongoose.model('user', userSchema);
 module.exports = User;
