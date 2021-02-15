@@ -18,7 +18,7 @@ passport.use('local-login',
       passReqToCallback : true
     },
     (req, username, password, done) => {
-      User.findOne({username:username})
+      User.findOne({username:username, email_verified:true})
         .select({password:1})
         .exec(function(err, user) {
           if (err) return done(err);

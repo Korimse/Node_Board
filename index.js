@@ -5,6 +5,7 @@ var methodOverride = require('method-override');
 var flash = require('connect-flash');
 var session = require('express-session');
 var passport = require('./config/passport');
+const User = require('./models/User');
 require('dotenv').config()
 var app = express();
 
@@ -40,7 +41,19 @@ app.use((req,res,next) => {
 app.use('/', require('./routes/home'));
 app.use('/posts', require('./routes/posts'));
 app.use('/users', require('./routes/users'));
-
+app.get('/confirm', function(req, res){  
+    User.updateOne({key_for_verify:req.query.key}, {$set:{email_verified:true}}, function(err,user){
+          if (err) {
+        }
+        else if(user.n==0){
+            res.send('<script type="text/javascript">alert("Not verified"); window.location="/"; </script>');
+        }
+        else {
+            res.send('<script type="text/javascript">alert("Successfully verified"); window.location="/"; </script>');
+        }
+    });
+  });
+  
 var port = 3000;
 app.listen(port, ()=> {
     console.log('server on! http://localhost:' + port);

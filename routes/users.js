@@ -2,6 +2,8 @@ var express = require('express');
 var router = express.Router();
 var User = require('../models/User');
 var util = require('../util');
+const crypto = require('crypto');
+var mailSender = require('../config/email')
 
 const checkPermission = (req, res, next) => {
   User.findOne({username:req.params.username}, function(err, user){
@@ -10,7 +12,7 @@ const checkPermission = (req, res, next) => {
  
    next();
   });
- }
+}
 
 router.get('/new', (req, res)=>{
     var user = req.flash('user')[0] || {};
@@ -19,21 +21,30 @@ router.get('/new', (req, res)=>{
 });
 
 router.post('/', (req, res) => {
-    User.create(req.body, (err, user) => {
-        if(err) {
-            req.flash('user', req.body);
-            req.flash('errors', util.parseError(err));
-            return res.redirect('/users/new');
-        }
-        res.redirect('/');
-    });
+  var key_one = crypto.randomBytes(256).toString('hex').substr(100, 5);
+  var key_two = crypto.randomBytes(256).toString('hex').substr(50, 5);
+  var key_for_verify = key_one + key_two;
+  req.body['key_for_verify'] = key_for_verify;
+  User.create(req.body, (err, user) => {
+    if(err) {
+      req.flash('user', req.body);
+      req.flash('errors', util.parseError(err));
+      return res.redirect('/users/new');
+    }
+    let emailParam = {
+      toEmail : req.body.email,
+      key_for_verify: req.body.key_for_verify
+    };
+    mailSender.sendGmail(emailParam);
+    res.redirect('/')
+  });
 });
 
 router.get('/:username', util.isLoggedin, (req, res) => {
-    User.findOne({username:req.params.username}, (err, user) => {
-        if(err) return res.json(err);
-        res.render('users/show', {user:user});
-    });
+  User.findOne({username:req.params.username}, (err, user) => {
+    if(err) return res.json(err);
+    res.render('users/show', {user:user});
+  });
 });
 
 router.get('/:username/edit', util.isLoggedin, checkPermission, (req, res) => {

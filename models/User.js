@@ -5,7 +5,9 @@ var userSchema = mongoose.Schema({
     username:{type:String, required:[true, 'Username is required!'], match:[/^.{4,12}$/, 'Should be 4-12 characters!'], trime:true, unique:true},
     password:{type:String, required:[true, 'Password is required!'], select:false},
     name:{type:String, required:[true, 'Name is required!'], match:[/^.{4,12}$/, 'Should be 4-12 characters!'], trime:true},
-    email:{type:String, match:[/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Should be a valid email address!'], trime:true}
+    email:{type:String, match:[/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Should be a valid email address!'], trime:true},
+    email_verified:{type:Boolean, required:true, default:false},
+    key_for_verify:{type:String, required:true}
 },{
     toObject:{virtuals:true}
 });
