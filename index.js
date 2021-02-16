@@ -6,6 +6,7 @@ var flash = require('connect-flash');
 var session = require('express-session');
 var passport = require('./config/passport');
 const User = require('./models/User');
+const util = require('./util');
 require('dotenv').config()
 var app = express();
 
@@ -39,7 +40,7 @@ app.use((req,res,next) => {
 });
 
 app.use('/', require('./routes/home'));
-app.use('/posts', require('./routes/posts'));
+app.use('/posts', util.getPostQueryString, require('./routes/posts'));
 app.use('/users', require('./routes/users'));
 app.get('/confirm', function(req, res){  
     User.updateOne({key_for_verify:req.query.key}, {$set:{email_verified:true}}, function(err,user){
