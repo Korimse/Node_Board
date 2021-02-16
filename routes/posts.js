@@ -12,13 +12,28 @@ const checkPermission = (req, res, next) => {
     });
 }
 
-router.get('/', (req, res) => {
-    Post.find({})
-    .populate('author')
-    .sort('-createdAt')
-    .exec((err, posts) => {
-        if(err) return res.json(err);
-        res.render('posts/index', {posts:posts})
+router.get('/', async (req, res) => {
+    var page = Math.max(1, parseInt(req.query.page));
+    var limit = Math.max(1, parseInt(req.query.limit));
+    console.log(req.query.page, req.query.limit)
+    page = !isNaN(page)?page:1;
+    limit = !isNaN(limit)?limit:10;
+
+    var skip = (page-1)*limit;
+    var count = await Post.countDocuments({});
+    var maxPage = Math.ceil(count/limit);
+    var posts = await Post.find({})
+        .populate('author')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit)
+        .exec();
+
+    res.render('posts/index', {
+        posts:posts,
+        currentPage:page,
+        maxPage:maxPage,
+        limit:limit
     });
 });
 
