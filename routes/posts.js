@@ -14,7 +14,7 @@ const checkPermission = (req, res, next) => {
     });
 }
 
-createSearchQuery = async (queries) => {
+const createSearchQuery = async (queries) => {
     var searchQuery = {};
     if(queries.searchType && queries.searchText && queries.searchText.length >= 3){
       var searchTypes = queries.searchType.toLowerCase().split(',');
@@ -95,17 +95,16 @@ router.post('/', util.isLoggedin, (req, res) => {
 
 router.get('/:id', (req, res) => {
   var commentForm = req.flash('commentForm')[0] || {_id: null, form: {}};
-  var commentError = req.flash('commentError')[0] || {_id:null, parentComment: null, errors:{}};
+  var commentError = req.flash('commentError')[0] || { _id:null, errors:{} };
   
   Promise.all([
-    Post.findOne({_id:req.params.id}).populate({path:'author', select:'username'}),
-    Comment.find({post:req.params.id}).sort('createdAt').populate({path:'author', select:'username'})
+    Post.findOne({_id:req.params.id}).populate({ path: 'author', select: 'username' }),
+    Comment.find({post:req.params.id}).sort('createdAt').populate({ path: 'author', select: 'username' })
   ])
   .then(([post, comments]) => {
-    res.render('posts/show', {post:post, comments:comments, commentForm:commentForm, commentError:commentError});
+    res.render('posts/show', { post:post, comments:comments, commentForm:commentForm, commentError:commentError});
   })
   .catch((err) => {
-    console.log('err: ', err);
     return res.json(err);
   });
 });
