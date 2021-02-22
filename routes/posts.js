@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var Post = require('../models/Post');
+var User = require('../models/User');
 var util = require('../util');
 
 const checkPermission = (req, res, next) => {
@@ -12,50 +13,66 @@ const checkPermission = (req, res, next) => {
     });
 }
 
-const createSearchQuery = (queries) => {
+createSearchQuery = async (queries) => {
     var searchQuery = {};
-    if (queries.searchType && queries.searchText && queries.searchText.length >= 3){
-        var searchTypes = queries.searchType.toLowerCase().split(',');
-        var postQueries = [];
-        if (searchTypes.indexOf('title')>=0){
-            postQueries.push({title:{ $regex: new RegExp(queries.searchText, 'i')}});
+    if(queries.searchType && queries.searchText && queries.searchText.length >= 3){
+      var searchTypes = queries.searchType.toLowerCase().split(',');
+      var postQueries = [];
+      if(searchTypes.indexOf('title')>=0){
+        postQueries.push({ title: { $regex: new RegExp(queries.searchText, 'i') } });
+      }
+      if(searchTypes.indexOf('body')>=0){
+        postQueries.push({ body: { $regex: new RegExp(queries.searchText, 'i') } });
+      }
+      if(searchTypes.indexOf('author!')>=0){
+        var user = await User.findOne({ username: queries.searchText }).exec();
+        if(user) postQueries.push({author:user._id});
+      }
+      else if(searchTypes.indexOf('author')>=0){
+        var users = await User.find({ username: { $regex: new RegExp(queries.searchText, 'i') } }).exec();
+        var userIds = [];
+        for(var user of users){
+          userIds.push(user._id);
         }
-        if(searchTypes.indexOf('body')>=0){
-            postQueries.push({body:{$regex:new RegExp(queries.searchText, 'i')}});
-        }
-        if(postQueries.length>0) searchQuery = {$or:postQueries};
+        if(userIds.length>0) postQueries.push({author:{$in:userIds}});
+      }
+      if(postQueries.length>0) searchQuery = {$or:postQueries};
+      else searchQuery = null;
     }
     return searchQuery;
 }
 
-router.get('/', async (req, res) => {
+router.get('/', async function(req, res){
     var page = Math.max(1, parseInt(req.query.page));
     var limit = Math.max(1, parseInt(req.query.limit));
-    console.log(req.query.page, req.query.limit)
     page = !isNaN(page)?page:1;
     limit = !isNaN(limit)?limit:10;
-
-    var searchQuery = createSearchQuery(req.query);
-
+  
     var skip = (page-1)*limit;
-    var count = await Post.countDocuments(searchQuery);
-    var maxPage = Math.ceil(count/limit);
-    var posts = await Post.find(searchQuery)
+    var maxPage = 0;
+    var searchQuery = await createSearchQuery(req.query);
+    var posts = [];
+  
+    if(searchQuery) {
+      var count = await Post.countDocuments(searchQuery);
+      maxPage = Math.ceil(count/limit);
+      posts = await Post.find(searchQuery)
         .populate('author')
         .sort('-createdAt')
         .skip(skip)
         .limit(limit)
         .exec();
-
+    }
+  
     res.render('posts/index', {
-        posts:posts,
-        currentPage:page,
-        maxPage:maxPage,
-        limit:limit,
-        searchType:req.query.searchType,
-        searchText:req.query.searchText
+      posts:posts,
+      currentPage:page,
+      maxPage:maxPage,
+      limit:limit,
+      searchType:req.query.searchType,
+      searchText:req.query.searchText
     });
-});
+  });
 
 router.get('/new', util.isLoggedin, (req, res) => {
     var post = req.flash('post')[0] || {}

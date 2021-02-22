@@ -41,3 +41,6 @@ body {
 .post-index-tool input[type="text"] {
   max-width: 130px;
 }
+.highlighted {
+  background-color: yellow;
+}
