@@ -77,6 +77,16 @@ router.get('/', async function(req, res){
         foreignField: 'post',
         as: 'comments'
       }},
+      { $lookup: {
+        from: 'files',
+        localField: 'attachment',
+        foreignField: '_id',
+        as: 'attachment'
+      }},
+      { $unwind: {
+        path: '$attachment',
+        preserveNullAndEmptyArrays: true
+      }},
       { $project: {
         title: 1,
         author: {
@@ -84,6 +94,7 @@ router.get('/', async function(req, res){
         },
         views:1,
         numId:1,
+        attachment: {$cond: [{$and: ['$attachment', {$not: '$attachment.isDeleted'}]}, true, false] },
         createdAt: 1,
         commentCount: {$size: '$comments'}
       }},
@@ -147,9 +158,11 @@ router.get('/:id/edit', util.isLoggedin, checkPermission, function(req, res){
   var post = req.flash('post')[0];
   var errors = req.flash('errors')[0] || {};
   if(!post){
-    Post.findOne({_id:req.params.id}, function(err, post){
+    Post.findOne({_id:req.params.id})
+      .populate({path:'attachment', match:{isDeleted:false}})
+      .exec(function(err, post){
         if(err) return res.json(err);
-        res.render('posts/edit', { post:post, errors:errors });
+        res.render('posts/edit', {post:post, errors:errors});
       });
   }
   else {
@@ -158,16 +171,21 @@ router.get('/:id/edit', util.isLoggedin, checkPermission, function(req, res){
   }
 });
 
-router.put('/:id', util.isLoggedin, checkPermission, function(req, res){
-    req.body.updatedAt = Date.now();
-    Post.findOneAndUpdate({_id:req.params.id}, req.body, {runValidators:true}, function(err, post){
-      if(err){
-        req.flash('post', req.body);
-        req.flash('errors', util.parseError(err));
-        return res.redirect('/posts/'+req.params.id+'/edit'+res.locals.getPostQueryString());
-      }
-      res.redirect('/posts/'+req.params.id + res.locals.getPostQueryString());
-    });
+router.put('/:id', util.isLoggedin, checkPermission, upload.single('newAttachment'), async function(req, res){
+  var post = await Post.findOne({_id:req.params.id}).populate({path:'attachment', match:{isDeleted:false}});
+  if(post.attachment && (req.file || !req.body.attachment)){
+    post.attachment.processDelete();
+  }  
+  req.body.attachment = req.file?await File.createNewInstance(req.file, req.user._id, req.params.id):post.attachment;
+  req.body.updatedAt = Date.now();
+  Post.findOneAndUpdate({_id:req.params.id}, req.body, {runValidators:true}, function(err, post){
+    if(err){
+      req.flash('post', req.body);
+      req.flash('errors', util.parseError(err));
+      return res.redirect('/posts/'+req.params.id+'/edit'+res.locals.getPostQueryString());
+    }
+    res.redirect('/posts/'+req.params.id + res.locals.getPostQueryString());
+  });
 });
 
 router.delete('/:id', util.isLoggedin, checkPermission, (req, res) => {
