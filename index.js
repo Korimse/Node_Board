@@ -39,6 +39,13 @@ app.use((req,res,next) => {
   next();
 });
 
+app.use((req, res, next) => {
+    res.locals.isAuthenticated = req.isAuthenticated();
+    res.locals.currentUser = req.user;
+    res.locals.util = util;
+    next();
+})
+
 app.use('/', require('./routes/home'));
 app.use('/posts', util.getPostQueryString, require('./routes/posts'));
 app.use('/users', require('./routes/users'));

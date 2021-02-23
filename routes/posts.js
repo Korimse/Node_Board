@@ -1,8 +1,11 @@
 var express = require('express');
 var router = express.Router();
+var multer = require('multer');
+var upload = multer({dest: 'uploadedFiles/'});
 var Post = require('../models/Post');
 var User = require('../models/User');
 var Comment = require('../models/Comment');
+var File = require('../models/File');
 var util = require('../util');
 
 const checkPermission = (req, res, next) => {
@@ -103,16 +106,18 @@ router.get('/new', util.isLoggedin, (req, res) => {
     res.render('posts/new', {post:post, errors:errors});
 });
 
-router.post('/', util.isLoggedin, (req, res) => {
-    req.body.author = req.user._id;
-    Post.create(req.body, (err, post) => {
-        if(err){
-            req.flash('post', req.body);
-            req.flash('errors', util.parseError(err));
-            return res.redirect('/posts/new' + res.locals.getPostQueryString());
-        }
-        res.redirect('/posts' + res.locals.getPostQueryString(false, {page:1, searchText:''}));
-    });
+router.post('/', util.isLoggedin, upload.single('attachment'), async (req, res) => {
+  var attachment = req.file?await File.createNewInstance(req.file, req.user._id):undefined;
+  req.body.attachment = attachment;
+  req.body.author = req.user._id;
+  Post.create(req.body, (err, post) => {
+    if(err){
+    req.flash('post', req.body);
+    req.flash('errors', util.parseError(err));
+    return res.redirect('/posts/new' + res.locals.getPostQueryString());
+    }
+    res.redirect('/posts' + res.locals.getPostQueryString(false, {page:1, searchText:''}));
+  });
 });
 
 router.get('/:id', (req, res) => {
@@ -120,7 +125,7 @@ router.get('/:id', (req, res) => {
   var commentError = req.flash('commentError')[0] || { _id:null, parentComment: null, errors:{} };
   
   Promise.all([
-    Post.findOne({_id:req.params.id}).populate({ path: 'author', select: 'username' }),
+    Post.findOne({_id:req.params.id}).populate({ path: 'author', select: 'username' }).populate({path:'attachment', match:{isDeleted:false}}),
     Comment.find({post:req.params.id}).sort('createdAt').populate({ path: 'author', select: 'username' })
   ])
   .then(([post, comments]) => {
