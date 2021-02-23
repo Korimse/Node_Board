@@ -50,6 +50,7 @@ app.use('/', require('./routes/home'));
 app.use('/posts', util.getPostQueryString, require('./routes/posts'));
 app.use('/users', require('./routes/users'));
 app.use('/comments', util.getPostQueryString, require('./routes/comments'));
+app.use('/files', require('./routes/files'));
 app.get('/confirm', function(req, res){  
     User.updateOne({key_for_verify:req.query.key}, {$set:{email_verified:true}}, function(err,user){
           if (err) {

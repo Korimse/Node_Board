@@ -106,7 +106,7 @@ router.get('/new', util.isLoggedin, (req, res) => {
     res.render('posts/new', {post:post, errors:errors});
 });
 
-router.post('/', util.isLoggedin, upload.single('attachment'), async (req, res) => {
+router.post('/', util.isLoggedin, upload.single('attachment'), async function(req, res){
   var attachment = req.file?await File.createNewInstance(req.file, req.user._id):undefined;
   req.body.attachment = attachment;
   req.body.author = req.user._id;
@@ -115,6 +115,10 @@ router.post('/', util.isLoggedin, upload.single('attachment'), async (req, res) 
     req.flash('post', req.body);
     req.flash('errors', util.parseError(err));
     return res.redirect('/posts/new' + res.locals.getPostQueryString());
+    }
+    if(attachment){
+      attachment.postId = post._id;
+      attachment.save();
     }
     res.redirect('/posts' + res.locals.getPostQueryString(false, {page:1, searchText:''}));
   });
@@ -125,7 +129,7 @@ router.get('/:id', (req, res) => {
   var commentError = req.flash('commentError')[0] || { _id:null, parentComment: null, errors:{} };
   
   Promise.all([
-    Post.findOne({_id:req.params.id}).populate({ path: 'author', select: 'username' }).populate({path:'attachment', match:{isDeleted:false}}),
+    Post.findOne({_id:req.params.id}).populate({ path: 'author', select: 'username' }).populate({path:'attachment',match:{isDeleted:false}}),
     Comment.find({post:req.params.id}).sort('createdAt').populate({ path: 'author', select: 'username' })
   ])
   .then(([post, comments]) => {
