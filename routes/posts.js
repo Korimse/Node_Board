@@ -44,36 +44,56 @@ const createSearchQuery = async (queries) => {
 }
 
 router.get('/', async function(req, res){
-    var page = Math.max(1, parseInt(req.query.page));
-    var limit = Math.max(1, parseInt(req.query.limit));
-    page = !isNaN(page)?page:1;
-    limit = !isNaN(limit)?limit:10;
+  var page = Math.max(1, parseInt(req.query.page));
+  var limit = Math.max(1, parseInt(req.query.limit));
+  page = !isNaN(page)?page:1;
+  limit = !isNaN(limit)?limit:10;
   
-    var skip = (page-1)*limit;
-    var maxPage = 0;
-    var searchQuery = await createSearchQuery(req.query);
-    var posts = [];
+  var skip = (page-1)*limit;
+  var maxPage = 0;
+  var searchQuery = await createSearchQuery(req.query);
+  var posts = [];
   
-    if(searchQuery) {
-      var count = await Post.countDocuments(searchQuery);
-      maxPage = Math.ceil(count/limit);
-      posts = await Post.find(searchQuery)
-        .populate('author')
-        .sort('-createdAt')
-        .skip(skip)
-        .limit(limit)
-        .exec();
-    }
+  if(searchQuery) {
+    var count = await Post.countDocuments(searchQuery);
+    maxPage = Math.ceil(count/limit);
+    posts = await Post.aggregate([
+      { $match: searchQuery},
+      { $lookup: {
+        from : 'users',
+        localField: 'author',
+        foreignField: '_id',
+        as: 'author',
+      }},
+      { $unwind: '$author'},
+      { $sort : { createdAt: -1} },
+      { $skip: skip},
+      { $lookup: {
+        from : 'comments',
+        localField: '_id',
+        foreignField: 'post',
+        as: 'comments'
+      }},
+      { $project: {
+        title: 1,
+        author: {
+          username: 1,
+        },
+        createdAt: 1,
+        commentCount: {$size: '$comments'}
+      }},
+    ]).exec();
+  }
   
-    res.render('posts/index', {
-      posts:posts,
-      currentPage:page,
-      maxPage:maxPage,
-      limit:limit,
-      searchType:req.query.searchType,
-      searchText:req.query.searchText
-    });
+  res.render('posts/index', {
+    posts:posts,
+    currentPage:page,
+    maxPage:maxPage,
+    limit:limit,
+    searchType:req.query.searchType,
+    searchText:req.query.searchText
   });
+});
 
 router.get('/new', util.isLoggedin, (req, res) => {
     var post = req.flash('post')[0] || {}
